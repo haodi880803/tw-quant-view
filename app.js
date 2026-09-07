@@ -440,6 +440,23 @@
     const tuneState = $('#tune-state');   // absent in viewer.html
     if (tuneState) tuneState.classList.toggle('hidden', !e.tuning);
 
+    // monitoring red lights (會議 01 議題 2): the closure for "WARN events
+    // nobody reads" — stale family page / AI report get a red chip in the
+    // topbar, and an unconfigured heartbeat is itself a warning
+    const hc = $('#health-chips');
+    if (hc) {
+      const h = e.health || null;
+      const chips = [];
+      if (h) {
+        (h.red || []).forEach((t) => chips.push(
+          '<span class="mini-chip red" title="監控紅燈:每日 EOD 會把它送到外部心跳的 /fail 端點">'
+          + escapeHtml(t) + '</span>'));
+        if (h.configured === false && !VIEWER) chips.push(
+          '<span class="mini-chip warn" title="HEARTBEAT_URL 未設定:主機失聯時沒有人會收到通知">心跳未設定</span>');
+      }
+      hc.innerHTML = chips.join('');
+    }
+
     tickCountdown();
   }
 
@@ -1700,6 +1717,33 @@
       + '<td class="r num ' + clsAB(r.day_pp) + '">' + fmtPp(r.day_pp) + '</td>'
       + '<td class="r num">' + (r.closed_b != null ? r.closed_b : '—') + '</td>'
       + '</tr>').join('');
+
+    // open positions + distance to the exit lines (read-only recompute;
+    // 會議 01 議題 1 ②: the column GPT asked for, and the one that settles
+    // the "why zero closes" attribution — neutral colours except a warm
+    // highlight when a line is within 3%)
+    const hbody = $('#shadow-holdings-body');
+    if (hbody) {
+      const hs = [];
+      (d.holdings && d.holdings.a || []).forEach((h) => hs.push({ arm: 'A', ...h }));
+      (d.holdings && d.holdings.b || []).forEach((h) => hs.push({ arm: 'B', ...h }));
+      if (!hs.length) {
+        hbody.innerHTML = '<tr><td colspan="9" class="empty-cell">兩臂目前無未平倉部位</td></tr>';
+      } else {
+        const near = (v) => (v != null && isFinite(v) && v < 3 ? ' near-exit' : '');
+        hbody.innerHTML = hs.map((h) => '<tr>'
+          + '<td class="c"><b>' + h.arm + '</b></td>'
+          + '<td>' + escapeHtml(String(h.symbol || '').replace(/\.(TW|TWO)$/i, '')) + '</td>'
+          + '<td class="r num">' + (h.qty != null ? h.qty.toLocaleString('en-US') : '—') + '</td>'
+          + '<td class="r num">' + fmtPrice(h.avg_entry) + '</td>'
+          + '<td class="r num">' + fmtPrice(h.last) + '</td>'
+          + '<td class="r num">' + (h.age_days != null ? h.age_days : '—') + '</td>'
+          + '<td class="r num ' + clsOf(h.ret_pct) + '">' + fmtPct(h.ret_pct) + '</td>'
+          + '<td class="r num' + near(h.dist_stop_pct) + '">' + fmtPct(h.dist_stop_pct) + '</td>'
+          + '<td class="r num' + near(h.dist_trail_pct) + '">' + fmtPct(h.dist_trail_pct) + '</td>'
+          + '</tr>').join('');
+      }
+    }
 
     // window trades, both arms merged, newest first
     const tradesBody = $('#shadow-trades-body');

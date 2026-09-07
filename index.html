@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>tw-quant 台股監控(唯讀)</title>
-<link rel="stylesheet" href="./app.css?v=20260811a">
+<link rel="stylesheet" href="./app.css?v=20260906a">
 </head>
 <body>
 
@@ -24,6 +24,7 @@
 
   <span class="engine-status">
     <span class="dim">上次掃描(台北)</span> <span class="num" id="last-scan">—</span>
+    <span id="health-chips" class="chip-row"></span>
   </span>
 
   <span class="spacer"></span>
@@ -252,6 +253,15 @@
           <tbody id="shadow-rows-body"></tbody>
         </table>
       </div>
+      <div class="chart-caption" style="margin-top:8px">未平倉部位與出場線距離(唯讀重算;距停損/距移停=現價高於該出場線的百分比,越小越接近出場)</div>
+      <div class="tbl-wrap shadow-wrap">
+        <table class="tbl">
+          <thead><tr><th class="c">帳</th><th>代碼</th><th class="r">股數</th><th class="r">均價</th>
+            <th class="r">現價</th><th class="r">持倉齡(日)</th><th class="r">報酬%</th>
+            <th class="r">距停損%</th><th class="r">距移停%</th></tr></thead>
+          <tbody id="shadow-holdings-body"><tr><td colspan="9" class="empty-cell">—</td></tr></tbody>
+        </table>
+      </div>
       <div class="chart-caption" style="margin-top:8px">窗內交易(自封存帳決定性重算)</div>
       <div class="tbl-wrap shadow-wrap">
         <table class="tbl">
@@ -287,6 +297,6 @@
 <!-- ECharts: local vendor only — the read-only build never loads external origins -->
 <script src="./vendor/echarts.min.js"></script>
 <script>window.TWQ_VIEWER = true;</script>
-<script src="./app.js?v=20260811a" defer></script>
+<script src="./app.js?v=20260906a" defer></script>
 </body>
 </html>
