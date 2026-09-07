@@ -97,6 +97,10 @@ body { display: flex; flex-direction: column; }
 .mini-chip.up   { color: var(--up);   background: rgba(240,68,82,.12); }
 .mini-chip.down { color: var(--down); background: rgba(18,183,106,.12); }
 .mini-chip.warn { color: var(--warn); background: rgba(229,161,58,.12); }
+/* monitoring red light (會議 01 議題 2): loud on purpose */
+.mini-chip.red  { color: #fff; background: rgba(240,68,82,.85); font-weight: 700; }
+/* shadow holdings: a line within 3% is worth a glance */
+.near-exit { color: var(--warn); font-weight: 700; }
 
 .engine-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 #scan-state, #tune-state { color: var(--accent); animation: pulse 1.2s infinite; }
