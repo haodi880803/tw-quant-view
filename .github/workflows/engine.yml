@@ -1,0 +1,85 @@
+name: tw-quant engine
+on:
+  schedule:
+    - cron: '30 0 * * 1-5'      # 08:30 Taipei 晨會
+    - cron: '*/30 1-5 * * 1-5'  # 09:00–13:30 Taipei 盤中掃描 (10 slots)
+    - cron: '15 6 * * 1-5'      # 14:15 Taipei EOD
+    - cron: '0 2 * * 6'         # Sat 10:00 Taipei 週檢討 + 調參 + 週六快照
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'auto | morning | scan | eod | tune | bake | replay'
+        type: choice
+        options: [auto, morning, scan, eod, tune, bake, replay]
+        default: auto
+      dry_run:
+        description: 'no commit/push; upload outputs as an artifact'
+        type: boolean
+        default: false
+      as_of:
+        description: 'Taipei date YYYY-MM-DD for replay (uses fixtures/<date>/)'
+        type: string
+        default: ''
+permissions:
+  contents: write
+concurrency:
+  group: tw-quant-engine
+  cancel-in-progress: false
+env:
+  PYTHONUNBUFFERED: '1'
+  TWQ_TZ: Asia/Taipei
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Decide mode
+        id: mode
+        run: python -m engine schedule decide --event "${{ github.event_name }}" --cron "${{ github.event.schedule }}" --mode "${{ inputs.mode || 'auto' }}" --as-of "${{ inputs.as_of }}" | tee -a "$GITHUB_OUTPUT"
+      - name: Run engine
+        if: steps.mode.outputs.mode != 'skip'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HEARTBEAT_URL: ${{ secrets.HEARTBEAT_URL }}
+          TWQ_DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
+          TWQ_AS_OF: ${{ inputs.as_of }}
+        run: python -m engine run --mode "${{ steps.mode.outputs.mode }}" --kind "${{ steps.mode.outputs.kind }}"
+      - name: Publish snapshot
+        if: steps.mode.outputs.mode != 'skip' && inputs.dry_run != true
+        run: |
+          git config user.name "tw-quant"
+          git config user.email "tw-quant@localhost"
+          git add -A -- state data.json orders.json events.json model-health.json shadow.json simple.html symbol
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          ISO=$(python -c 'import datetime,zoneinfo;print(datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Taipei")).isoformat(timespec="seconds"))')
+          git commit -m "snapshot $ISO"
+          for i in 1 2 3; do
+            git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && exit 0
+            sleep 15
+          done
+          echo "push failed" >&2
+          exit 1
+      - name: Upload dry-run outputs
+        if: inputs.dry_run == true
+        uses: actions/upload-artifact@v4
+        with:
+          name: dry-run-${{ github.run_id }}
+          path: |
+            data.json
+            orders.json
+            events.json
+            model-health.json
+            shadow.json
+            simple.html
+            symbol/
+            state/
+          retention-days: 7
